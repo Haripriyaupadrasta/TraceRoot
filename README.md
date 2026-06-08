@@ -19,13 +19,39 @@ A single-file Flask application for analyzing and managing bug reports with AI-p
 
 ## 🚀 Installation & Setup
 
-### 1. Install Dependencies
+### 1. Clone the Repository
 
 ```bash
-pip install flask requests
+git clone https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git
+cd TraceRoot
 ```
 
-### 2. Install & Start Ollama (Optional)
+### 2. Create Virtual Environment (Optional but Recommended)
+
+```bash
+# Windows
+python -m venv .venv
+.venv\Scripts\activate
+
+# macOS/Linux
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+This installs:
+- Flask - Web framework
+- Requests - HTTP library
+- Python-PPTX - PowerPoint generation
+- ReportLab - PDF generation
+- OpenPyXL - Excel file handling
+
+### 4. Install & Start Ollama (Optional - for RCA Generation)
 
 For Root Cause Analysis generation, install Ollama from [ollama.ai](https://ollama.ai)
 
@@ -36,7 +62,7 @@ ollama run mistral
 ollama run llama2
 ```
 
-### 3. Run the Application
+### 5. Run the Application
 
 ```bash
 python app.py
