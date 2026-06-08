@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraceRoot - Bug Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="results-page">
+    <div class="header">
+        <h1>
+            <span class="bug-icon"></span>Bug Results
+        </h1>
+        <a href="/" class="back-button">← Back to Home</a>
+    </div>
+    
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search by Bug ID or Title...">
+        </div>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-item">
+            <div class="stat-label">TOTAL BUGS</div>
+            <div class="stat-value" id="totalCount">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">CRITICAL (P1)</div>
+            <div class="stat-value" id="criticalCount" style="color: #ef4444;">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">HIGH (P2)</div>
+            <div class="stat-value" id="highCount" style="color: #f97316;">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">RESOLVED</div>
+            <div class="stat-value" id="resolvedCount" style="color: #22c55e;">0</div>
+        </div>
+        <div class="stats-action">
+            <button id="generateBtn" class="generate-btn">Generate RCA</button>
+            <div id="loadingSpinner" class="loading-spinner hidden">
+                <div class="spinner"></div>
+            </div>
+            <button id="exportBtn" class="export-btn">Export to Excel</button>
+        </div>
+    </div>
+    
+    <div class="bug-grid" id="bugGrid">
+        <div class="no-results">Loading bugs...</div>
+    </div>
+    
+    <div class="modal" id="bugModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalBugId"></h2>
+                </div>
+                <button class="close-btn" onclick="closeBugModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-item-label">Status</div>
+                        <div class="detail-item-value" id="modalStatus"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Priority</div>
+                        <div class="detail-item-value" id="modalPriority"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Severity</div>
+                        <div class="detail-item-value" id="modalSeverity"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Assigned To</div>
+                        <div class="detail-item-value" id="modalAssigned"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Created Date</div>
+                        <div class="detail-item-value" id="modalDate"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Environment</div>
+                        <div class="detail-item-value" id="modalEnv"></div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Title</h3>
+                    <p id="modalTitle"></p>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Description</h3>
+                    <p id="modalDescription"></p>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Reproduction Steps</h3>
+                    <p id="modalRepro"></p>
+                </div>
+                
+                <div class="rca-section">
+                    <h3>Root Cause Analysis</h3>
+                    <div id="modalRCA" class="rca-loading">Generating RCA using Ollama...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Initialize page with date range from URL or Flask template variables
+        window.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Get date range from URL parameters first, then from Flask template variables
+            let startDate = params.get('start_date') || '{{ start_date }}';
+            let endDate = params.get('end_date') || '{{ end_date }}';
+            let month = params.get('month') || '{{ month }}';
+            
+            // Validate date values (check if they're actual values or empty Flask variables)
+            if (!startDate || startDate === 'None' || startDate === '') startDate = null;
+            if (!endDate || endDate === 'None' || endDate === '') endDate = null;
+            if (!month || month === 'None' || month === '') month = null;
+            
+            // Support both new date range and old month parameters for backwards compatibility
+            let queryString = '';
+            if (startDate && endDate) {
+                queryString = `?start_date=${startDate}&end_date=${endDate}`;
+            } else if (month) {
+                queryString = `?month=${month}`;
+            } else {
+                const grid = document.getElementById('bugGrid');
+                if (grid) {
+                    grid.innerHTML = '<div class="no-results" style="grid-column: 1 / -1; color: #ef4444;">⚠️ Please select a date range from the home page to view bugs.</div>';
+                }
+                return;
+            }
+            
+            console.log('Loading bugs with query:', queryString);
+            fetch(`/api/bugs${queryString}`)
+                .then(r => r.json())
+                .then(data => {
+                    console.log('Loaded', data.length, 'bugs');
+                    allBugs = data;
+                    renderBugs(allBugs);
+                    updateStats(allBugs);
+                })
+                .catch(err => {
+                    console.error('Error loading bugs:', err);
+                    const grid = document.getElementById('bugGrid');
+                    if (grid) {
+                        grid.innerHTML = '<div class="no-results" style="grid-column: 1 / -1; color: #ef4444;">⚠️ Error loading bugs. Please try again.</div>';
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

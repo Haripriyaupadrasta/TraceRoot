@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraceRoot - Bug Stories</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="results-page">
+    <div class="header">
+        <h1>
+            <span class="bug-icon">🐞</span>Bug Stories
+        </h1>
+        <a href="/" class="back-button">← Back to Home</a>
+    </div>
+
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search by Bug ID or Title...">
+        </div>
+        <div class="search-box">
+            <label for="startDate" class="section-label" style="margin-bottom: 8px;">Start Date</label>
+            <input type="date" id="startDate" class="select-field">
+        </div>
+        <div class="search-box">
+            <label for="endDate" class="section-label" style="margin-bottom: 8px;">End Date</label>
+            <input type="date" id="endDate" class="select-field">
+        </div>
+        <div class="page-note">
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-item">
+            <div class="stat-label">TOTAL STORIES</div>
+            <div class="stat-value" id="totalCount">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">CRITICAL (P1)</div>
+            <div class="stat-value" id="criticalCount" style="color: #ef4444;">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">HIGH (P2)</div>
+            <div class="stat-value" id="highCount" style="color: #f97316;">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">RESOLVED</div>
+            <div class="stat-value" id="resolvedCount" style="color: #22c55e;">0</div>
+        </div>
+    </div>
+
+    <div class="bug-grid" id="storiesGrid">
+        <div class="no-results">Loading bug stories...</div>
+    </div>
+
+    <!-- Bug Details Modal -->
+    <div id="bugModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalBugId"></h2>
+                <button class="modal-close" onclick="closeBugModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h3>📋 Title</h3>
+                    <p id="modalBugTitle"></p>
+                </div>
+                <div class="modal-section">
+                    <h3>📊 Status & Priority</h3>
+                    <div id="modalBugMeta"></div>
+                </div>
+                <div class="modal-section">
+                    <h3>📝 Description</h3>
+                    <p id="modalBugDescription"></p>
+                </div>
+                <div class="modal-section">
+                    <h3>🔧 Reproduction Steps</h3>
+                    <pre id="modalBugRepro" class="repro-steps"></pre>
+                </div>
+                <div class="modal-section">
+                    <h3><span style="color: #ffffff;">📅</span> Details</h3>
+                    <div id="modalBugDetails" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px; color: #cbd5e1;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const storiesGrid = document.getElementById('storiesGrid');
+        const searchInput = document.getElementById('searchInput');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const totalCount = document.getElementById('totalCount');
+        const criticalCount = document.getElementById('criticalCount');
+        const highCount = document.getElementById('highCount');
+        const resolvedCount = document.getElementById('resolvedCount');
+        let stories = [];
+
+        function getDateRange() {
+            const start = startDateInput ? startDateInput.value : '';
+            const end = endDateInput ? endDateInput.value : '';
+            return { start, end };
+        }
+
+        function fetchStories() {
+            const dateRange = getDateRange();
+            let url = '/api/stories';
+            
+            if (dateRange.start && dateRange.end) {
+                url += `?start_date=${dateRange.start}&end_date=${dateRange.end}`;
+            }
+            
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    stories = data;
+                    renderStories(stories);
+                    updateStats(stories);
+                });
+        }
+
+        function renderStories(filteredStories) {
+            if (!storiesGrid) return;
+            if (filteredStories.length === 0) {
+                storiesGrid.innerHTML = '<div class="no-results" style="grid-column: 1 / -1;">No stories found.</div>';
+                return;
+            }
+
+            // Group stories by type
+            const bugs = filteredStories.filter(s => s.type === 'bugs');
+            const incidents = filteredStories.filter(s => s.type === 'incidents');
+            
+            let html = '';
+            
+            if (bugs.length > 0) {
+                html += '<div style="grid-column: 1 / -1; font-size: 18px; font-weight: bold; color: #0ea5e9; margin-top: 20px; margin-bottom: 10px;">🐞 Bugs</div>';
+                html += bugs.map((story) => `
+                    <div class="bug-card" onclick="openBugModal('${story.bug_id}')">
+                        <div class="bug-card-header">
+                            <div style="flex: 1;">
+                                <div class="bug-id">${story.bug_id}</div>
+                                <div class="bug-title">${story.title}</div>
+                            </div>
+                            <div class="expand-icon">→</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            if (incidents.length > 0) {
+                html += '<div style="grid-column: 1 / -1; font-size: 18px; font-weight: bold; color: #ef4444; margin-top: 20px; margin-bottom: 10px;">🚨 Incidents</div>';
+                html += incidents.map((story) => `
+                    <div class="bug-card" onclick="openBugModal('${story.bug_id}')">
+                        <div class="bug-card-header">
+                            <div style="flex: 1;">
+                                <div class="bug-id">${story.bug_id}</div>
+                                <div class="bug-title">${story.title}</div>
+                            </div>
+                            <div class="expand-icon">→</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            storiesGrid.innerHTML = html;
+        }
+
+        function openBugModal(bugId) {
+            const story = stories.find(s => s.bug_id === bugId);
+            if (!story) return;
+
+            document.getElementById('modalBugId').textContent = story.bug_id;
+            document.getElementById('modalBugTitle').textContent = story.title;
+            
+            document.getElementById('modalBugDescription').textContent = story.description;
+            document.getElementById('modalBugRepro').textContent = story.repro_steps;
+            
+            const metaHtml = `
+                <span class="badge status-${story.status.toLowerCase().replace(/\s+/g, '-')}">${story.status}</span>
+                <span class="badge priority-${story.priority.toLowerCase()}">${story.priority}</span>
+                <span class="badge category-badge">${story.category}</span>
+            `;
+            document.getElementById('modalBugMeta').innerHTML = metaHtml;
+            
+            const detailsHtml = `
+                <div><strong><span style="color: #ffffff;">📅</span> Created:</strong> ${story.created_date}</div>
+                <div><strong>👤 Assigned To:</strong> ${story.assigned_to}</div>
+                <div><strong>🏷️ Category:</strong> ${story.category}</div>
+                <div><strong>🏢 Environment:</strong> ${story.environment}</div>
+                <div><strong>⚠️ Severity:</strong> Level ${story.severity}</div>
+                <div><strong>🔄 Status:</strong> ${story.status}</div>
+            `;
+            document.getElementById('modalBugDetails').innerHTML = detailsHtml;
+            
+            const modal = document.getElementById('bugModal');
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBugModal() {
+            const modal = document.getElementById('bugModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('bugModal');
+            if (event.target === modal) {
+                closeBugModal();
+            }
+        }
+
+        function updateStats(filteredStories) {
+            if (totalCount) totalCount.textContent = filteredStories.length;
+            if (criticalCount) criticalCount.textContent = filteredStories.filter(b => b.priority === 'P1' || b.priority === 'CRITICAL').length;
+            if (highCount) highCount.textContent = filteredStories.filter(b => b.priority === 'P2' || b.priority === 'HIGH').length;
+            if (resolvedCount) resolvedCount.textContent = filteredStories.filter(b => b.status === 'Resolved' || b.status === 'RESOLVED').length;
+        }
+
+        function filterStories(query) {
+            const filtered = stories.filter(story =>
+                story.bug_id.toLowerCase().includes(query) ||
+                story.title.toLowerCase().includes(query)
+            );
+            renderStories(filtered);
+            updateStats(filtered);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchStories();
+
+            if (startDateInput) {
+                startDateInput.addEventListener('change', fetchStories);
+            }
+            if (endDateInput) {
+                endDateInput.addEventListener('change', fetchStories);
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    filterStories(this.value.toLowerCase());
+                });
+            }
+        });
+    </script>
+</body>
+</html>

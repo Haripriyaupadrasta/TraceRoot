@@ -1,0 +1,5 @@
+flask
+requests
+python-pptx
+reportlab
+openpyxl

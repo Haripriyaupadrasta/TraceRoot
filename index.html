@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐞TraceRoot Local - Bug Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="landing-page">
+    <div class="page-wrapper">
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar-nav">
+            <div class="nav-menu">
+                <!-- Quick Stats Section -->
+                <div class="nav-section stats-section">
+                    <p class="nav-label" style="font-size: 12px; color: #64748b; margin-bottom: 8px;">📊 QUICK STATS</p>
+                    <div class="stat-box">
+                        <span class="stat-number">200</span>
+                        <span class="stat-label">TOTAL BUGS</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number">100</span>
+                        <span class="stat-label">TOTAL INCIDENTS</span>
+                    </div>
+                    <div class="stat-box critical">
+                        <span class="stat-number">40</span>
+                        <span class="stat-label">CRITICAL (P1)</span>
+                    </div>
+                    <div class="stat-box high">
+                        <span class="stat-number">43</span>
+                        <span class="stat-label">HIGH (P2)</span>
+                    </div>
+                    <div class="stat-box resolved">
+                        <span class="stat-number">42</span>
+                        <span class="stat-label">RESOLVED</span>
+                    </div>
+                </div>
+
+                <!-- Date Range Selection in Sidebar -->
+                <div class="nav-section">
+                    <label class="nav-label">📅 Select Date Range <span style="color: #ef4444;">*</span></label>
+                    <div class="date-range-container">
+                        <div class="date-input-group">
+                            <label for="startDate" style="font-size: 11px; color: #64748b;">Start Date:</label>
+                            <input type="date" id="startDate" name="startDate" class="date-input" required>
+                        </div>
+                        <div class="date-input-group">
+                            <label for="endDate" style="font-size: 11px; color: #64748b;">End Date:</label>
+                            <input type="date" id="endDate" name="endDate" class="date-input" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Links -->
+                <div class="nav-section">
+                    <a href="/stories" class="nav-link">📖 View Bug Stories</a>
+                </div>
+
+                <!-- Help Section -->
+                <div class="nav-section nav-footer">
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="landing-container">
+                <!-- Header Section -->
+                <div class="header-top-container">
+                    <div class="landing-header">
+                        <div class="heading-box">
+                            <h1><span class="bug-emoji">🐞</span><span class="title-text">TraceRoot</span></h1>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Card -->
+                <div class="landing-card">
+                    <form method="POST" action="/results" class="landing-form">
+                        <!-- URL Input Section -->
+                        <div class="form-section">
+                            <label for="ado_url" class="section-label">📋 Azure DevOps Board URL</label>
+                            <input 
+                                type="text" 
+                                id="ado_url" 
+                                name="ado_url" 
+                                placeholder="Paste your ADO board URL here (e.g., https://dev.azure.com/company/project)"
+                                value="https://dev.azure.com/company/project"
+                                class="input-field"
+                            >
+                            <p class="field-hint">Bug stories link</p>
+                        </div>
+
+                        <!-- Hidden Date Range Inputs -->
+                        <input type="hidden" id="selectedStartDate" name="start_date" value="">
+                        <input type="hidden" id="selectedEndDate" name="end_date" value="">
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="analyzeBtn" class="submit-btn" disabled>Analyze Bugs</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Date range selection validation and form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const selectedStartDateInput = document.getElementById('selectedStartDate');
+            const selectedEndDateInput = document.getElementById('selectedEndDate');
+            const form = document.querySelector('.landing-form');
+
+            // Set default date range (last 30 days)
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+            
+            startDateInput.valueAsDate = thirtyDaysAgo;
+            endDateInput.valueAsDate = today;
+            
+            // Initially disable the button
+            analyzeBtn.disabled = true;
+
+            // Validate and enable/disable button based on date selection
+            function validateDateRange() {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    
+                    if (start <= end) {
+                        analyzeBtn.disabled = false;
+                        selectedStartDateInput.value = startDate;
+                        selectedEndDateInput.value = endDate;
+                        console.log('✓ Date range valid:', startDate, 'to', endDate);
+                        return;
+                    }
+                }
+                analyzeBtn.disabled = true;
+                console.log('✗ Invalid date range');
+            }
+
+            startDateInput.addEventListener('change', validateDateRange);
+            endDateInput.addEventListener('change', validateDateRange);
+            
+            // Form submission handler to ensure dates are set
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const startDate = startDateInput.value;
+                    const endDate = endDateInput.value;
+                    
+                    // Ensure hidden inputs are filled
+                    selectedStartDateInput.value = startDate;
+                    selectedEndDateInput.value = endDate;
+                    
+                    console.log('Form submitting with dates:', startDate, endDate);
+                    
+                    // Form will now POST with the date range
+                });
+            }
+            
+            // Initial validation
+            validateDateRange();
+        });
+    </script>
+</body>
+</html>
